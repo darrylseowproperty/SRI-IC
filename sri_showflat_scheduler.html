@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SRI Showflat Duty Scheduler</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -386,19 +389,37 @@ function rmAg(id,n){var s=SFs.find(function(x){return x.id===id;});s.agents=s.ag
 function updSF(id,f,v){var s=SFs.find(function(x){return x.id===id;});if(s){s[f]=parseInt(v)||1;autoSave();}}
 function renderSetup(){
   var el=document.getElementById("sf-list");
-  if(!SFs.length){el.innerHTML="<div style='text-align:center;padding:36px;color:var(--muted)'><p>No showflats yet. Add one above.</p></div>";return;}
-  el.innerHTML=SFs.map(function(sf){
-    var ags=sf.agents.map(function(a){return "<span class='atag'>"+a+"<button class='tx' onclick='rmAg(""+sf.id+"",""+a+"")'>x</button></span>";}).join("");
-    return "<div class='sfc'><div class='sfc-h'><h3>"+sf.name+"</h3><button class='btn btn-sm' style='background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)' onclick='rmSF(""+sf.id+"")'>Remove</button></div>"
+  if(!SFs.length){
+    el.innerHTML="<div style='text-align:center;padding:36px;color:var(--muted)'><p>No showflats yet. Add one above.</p></div>";
+    return;
+  }
+  el.innerHTML="";
+  SFs.forEach(function(sf){
+    var div=document.createElement("div");
+    div.className="sfc";
+    var agHtml=sf.agents.map(function(a){
+      return "<span class='atag'>"+escH(a)+"<button class='tx' data-sfid='"+sf.id+"' data-ag='"+escA(a)+"' onclick='rmAgBtn(this)'>x</button></span>";
+    }).join("");
+    div.innerHTML="<div class='sfc-h'><h3>"+escH(sf.name)+"</h3>"
+      +"<button class='btn btn-sm' style='background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)' data-sfid='"+sf.id+"' onclick='rmSFBtn(this)'>Remove</button></div>"
       +"<div class='sfc-b'><div class='g2' style='margin-bottom:11px'>"
-      +"<div><label>SRI Agents per Weekday</label><input type='number' value='"+sf.wdCount+"' min='1' onchange='updSF(""+sf.id+"","wdCount",this.value)'></div>"
-      +"<div><label>SRI Agents per Weekend / PH</label><input type='number' value='"+sf.weCount+"' min='1' onchange='updSF(""+sf.id+"","weCount",this.value)'></div>"
+      +"<div><label>SRI Agents per Weekday</label><input type='number' value='"+sf.wdCount+"' min='1' data-sfid='"+sf.id+"' data-field='wdCount' onchange='updSFInp(this)'></div>"
+      +"<div><label>SRI Agents per Weekend / PH</label><input type='number' value='"+sf.weCount+"' min='1' data-sfid='"+sf.id+"' data-field='weCount' onchange='updSFInp(this)'></div>"
       +"</div><label style='margin-bottom:7px'>Agent Pool - "+sf.agents.length+" agent"+(sf.agents.length!==1?"s":"")+"</label>"
-      +"<div style='margin-bottom:9px;min-height:26px'>"+ags+(!sf.agents.length?"<span style='font-size:13px;color:var(--muted)'>No agents yet</span>":"")+"</div>"
-      +"<div style='display:flex;gap:7px'><input type='text' id='ai-"+sf.id+"' placeholder='Type agent name...' list='agent-dl' autocomplete='off' style='flex:1' onkeydown='if(event.key==="Enter")addAg(""+sf.id+"")'><button class='btn btn-p btn-sm' onclick='addAg(""+sf.id+"")'>+ Add</button></div>"
-      +"</div></div>";
-  }).join("");
+      +"<div style='margin-bottom:9px;min-height:26px'>"+agHtml+(!sf.agents.length?"<span style='font-size:13px;color:var(--muted)'>No agents yet</span>":"")+"</div>"
+      +"<div style='display:flex;gap:7px'><input type='text' id='ai-"+sf.id+"' placeholder='Type agent name...' list='agent-dl' autocomplete='off' style='flex:1' data-sfid='"+sf.id+"' onkeydown='if(event.key==="Enter")addAgInp(this)'>"
+      +"<button class='btn btn-p btn-sm' data-sfid='"+sf.id+"' onclick='addAgBtn(this)'>+ Add</button></div>"
+      +"</div>";
+    el.appendChild(div);
+  });
 }
+function escH(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function escA(s){return String(s).replace(/'/g,"&#39;").replace(/"/g,"&quot;");}
+function rmSFBtn(btn){var id=btn.getAttribute("data-sfid");rmSF(id);}
+function rmAgBtn(btn){var id=btn.getAttribute("data-sfid"),ag=btn.getAttribute("data-ag");rmAg(id,ag);}
+function updSFInp(inp){var id=inp.getAttribute("data-sfid"),f=inp.getAttribute("data-field");updSF(id,f,inp.value);}
+function addAgBtn(btn){var id=btn.getAttribute("data-sfid");addAg(id);}
+function addAgInp(inp){var id=inp.getAttribute("data-sfid");addAg(id);}
 function getCurSf(){return SFs.find(function(s){return s.id===aCSf;});}
 function getSel(){var sf=getCurSf();if(!sf)return[];var s=sel[sf.id];return s?Array.from(s):[];}
 function isSel(k){var sf=getCurSf();if(!sf)return false;var s=sel[sf.id];return s?s.has(k):false;}
@@ -434,19 +455,48 @@ function updateSbar(){
   if(!s.length){bar.classList.remove("show");return;}
   bar.classList.add("show");
   document.getElementById("sel-count").textContent=s.length;
-  document.getElementById("sbar-pills").innerHTML=AGS.map(function(a){return "<button class='ap ap-"+a.replace(/\s/g,"")+"' onclick='assignSel(""+a+"")'>"+a+"</button>";}).join("");
+  document.getElementById("sbar-pills").innerHTML="";
+  AGS.forEach(function(a){
+    var btn=document.createElement("button");
+    btn.className="ap ap-"+a.replace(/\s/g,"");
+    btn.textContent=a;
+    btn.onclick=(function(ag){return function(){assignSel(ag);};})(a);
+    document.getElementById("sbar-pills").appendChild(btn);
+  });
 }
 function assignSel(agency){
   var sf=getCurSf();if(!sf)return;
-  getSel().forEach(function(k){if(!sf.dayData[k])sf.dayData[k]={agencies:[]};if(sf.dayData[k].agencies.indexOf(agency)<0)sf.dayData[k].agencies.push(agency);});
+  var btns="";
+  AGS.forEach(function(a){
+    var btn=document.createElement("button");
+    btn.className="ap ap-"+a.replace(/\s/g,"");
+    btn.style.cssText="font-size:12px;padding:5px 12px";
+    btn.textContent=a;
+    btn.onclick=(function(ag){return function(){doRemoveAg(ag);};})(a);
+    btns+=btn.outerHTML;
+  });
   clearSel();renderCalBody();autoSave();
 }
 function showRemovePanel(){
   var sf=getCurSf();if(!sf)return;var s=getSel();if(!s.length)return;
   var panel=document.getElementById("remove-panel");
   if(panel.style.display==="block"){panel.style.display="none";return;}
-  var btns=AGS.map(function(a){return "<button class='ap ap-"+a.replace(/\s/g,"")+"' onclick='doRemoveAg(""+a+"")' style='font-size:12px;padding:5px 12px'>"+a+"</button>";}).join("");
-  panel.innerHTML="<div style='font-size:12px;color:rgba(255,255,255,.7);margin-bottom:7px'>Remove which agency?</div><div style='display:flex;flex-wrap:wrap;gap:6px'>"+btns+"</div>";
+  panel.innerHTML="";
+  var heading=document.createElement("div");
+  heading.style.cssText="font-size:12px;color:rgba(255,255,255,.7);margin-bottom:7px";
+  heading.textContent="Remove which agency?";
+  panel.appendChild(heading);
+  var row=document.createElement("div");
+  row.style.cssText="display:flex;flex-wrap:wrap;gap:6px";
+  AGS.forEach(function(a){
+    var btn=document.createElement("button");
+    btn.className="ap ap-"+a.replace(/\s/g,"");
+    btn.style.cssText="font-size:12px;padding:5px 12px";
+    btn.textContent=a;
+    btn.onclick=(function(ag){return function(){doRemoveAg(ag);};})(a);
+    row.appendChild(btn);
+  });
+  panel.appendChild(row);
   panel.style.display="block";
 }
 function doRemoveAg(agency){
@@ -466,10 +516,28 @@ function clearAllAssign(){
   var sf=getCurSf();if(!sf)return;
   ic("Clear ALL assignments for "+sf.name+"? Cannot be undone.",function(){sf.dayData={};clearSel();renderCalBody();autoSave();});
 }
+
+function renderSfTabs(elId, activeId, varName, cb){
+  var el=document.getElementById(elId);
+  el.innerHTML="";
+  SFs.forEach(function(sf){
+    var btn=document.createElement("button");
+    btn.className="sfb"+(sf.id===activeId?" active":"");
+    btn.textContent=sf.name;
+    btn.setAttribute("data-sfid",sf.id);
+    btn.setAttribute("data-var",varName);
+    btn.setAttribute("data-cb",cb);
+    btn.onclick=function(){
+      window[this.getAttribute("data-var")]=this.getAttribute("data-sfid");
+      eval(this.getAttribute("data-cb"));
+    };
+    el.appendChild(btn);
+  });
+}
 function renderCal(){
   if(!SFs.length){document.getElementById("cal-tabs").innerHTML="";document.getElementById("cal-body").innerHTML="<div class='info'>Add showflats first.</div>";return;}
   if(!aCSf||!SFs.find(function(s){return s.id===aCSf;}))aCSf=SFs[0].id;
-  document.getElementById("cal-tabs").innerHTML=SFs.map(function(sf){return "<button class='sfb "+(sf.id===aCSf?"active":"")+"' onclick='aCSf=""+sf.id+"";clearSel();renderCal()'>"+sf.name+"</button>";}).join("");
+  renderSfTabs("cal-tabs",aCSf,"aCSf","clearSel();renderCal()");
   renderCalBody();
 }
 function renderCalBody(){
@@ -486,11 +554,11 @@ function renderCalBody(){
       var k=dk(y,m,d),dd=sf.dayData[k]||{agencies:[]},ags=dd.agencies||[];
       var hasSRI=ags.indexOf("SRI")>=0,ph=isPH(k),we=dw(k)===0||dw(k)===6,inRange=inR(k),isSel2=isSel(k);
       var others=ags.filter(function(a){return a!=="SRI";});
-      html+="<div class='cc"+(hasSRI?" has-sri":"")+((!hasSRI&&we)?" we-d":"")+(!inRange?" dim":"")+(isSel2?" sel-c":"")+"' id='cc-"+k+"' onclick='toggleSel(""+k+"")'>"
+      html+="<div class='cc"+(hasSRI?" has-sri":"")+((!hasSRI&&we)?" we-d":"")+(!inRange?" dim":"")+(isSel2?" sel-c":"")+"' id='cc-"+k+"' data-key='"+k+"' onclick='toggleSel(this.getAttribute("data-key"))'>"
         +(ph?"<span class='ph-dot'>*</span>":"")
         +"<span class='dn'>"+d+"</span>"
         +"<div class='ag-chips'>"+(hasSRI?chip("SRI"):"")+others.map(chip).join("")+"</div>"
-        +(ags.length>1?"<div style='font-size:9px;color:var(--muted);margin-top:2px;cursor:pointer' onclick='event.stopPropagation();openRO(""+sf.id+"",""+k+"")'>reorder</div>":"")
+        +(ags.length>1?"<div style='font-size:9px;color:var(--muted);margin-top:2px;cursor:pointer' data-sfid='"+sf.id+"' data-key='"+k+"' onclick='event.stopPropagation();openRO(this.getAttribute("data-sfid"),this.getAttribute("data-key"))'>reorder</div>":"")
         +"</div>";
     }
     html+="</div></div>";
@@ -556,7 +624,7 @@ function generateAll(){
 function renderSched(){
   if(!SFs.length){document.getElementById("sched-tabs").innerHTML="";document.getElementById("sched-out").innerHTML="";return;}
   if(!aSSf||!SFs.find(function(s){return s.id===aSSf;}))aSSf=SFs[0].id;
-  document.getElementById("sched-tabs").innerHTML=SFs.map(function(sf){return "<button class='sfb "+(sf.id===aSSf?"active":"")+"' onclick='aSSf=""+sf.id+"";renderSchedOut()'>"+sf.name+"</button>";}).join("");
+  renderSfTabs("sched-tabs",aSSf,"aSSf","renderSchedOut()");
   renderSchedOut();
 }
 function renderSchedOut(){
@@ -593,7 +661,7 @@ function renderSchedOut(){
 function renderStats(){
   if(!SFs.length){document.getElementById("stats-tabs").innerHTML="";document.getElementById("stats-out").innerHTML="";return;}
   if(!aStSf||!SFs.find(function(s){return s.id===aStSf;}))aStSf=SFs[0].id;
-  document.getElementById("stats-tabs").innerHTML=SFs.map(function(sf){return "<button class='sfb "+(sf.id===aStSf?"active":"")+"' onclick='aStSf=""+sf.id+"";renderStatsOut()'>"+sf.name+"</button>";}).join("");
+  renderSfTabs("stats-tabs",aStSf,"aStSf","renderStatsOut()");
   renderStatsOut();
 }
 function renderStatsOut(){
