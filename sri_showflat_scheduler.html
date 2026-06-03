@@ -253,7 +253,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
   <div class="ic-box">
     <div style="font-family:Playfair Display,serif;font-size:19px;color:var(--sp);margin-bottom:6px">Admin Access</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Enter the admin password to access Settings.</div>
-    <input type="password" id="pwd-inp" placeholder="Password" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')checkPwd()">
+    <input type="password" id="pwd-inp" placeholder="Password" style="margin-bottom:10px" id="pwd-inp-field">
     <div id="pwd-err" style="font-size:12px;color:#B71C1C;margin-bottom:10px;display:none">Incorrect password.</div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-sm" onclick="closePwd()">Cancel</button>
@@ -407,7 +407,7 @@ function renderSetup(){
       +"<div><label>SRI Agents per Weekend / PH</label><input type='number' value='"+sf.weCount+"' min='1' data-sfid='"+sf.id+"' data-field='weCount' onchange='updSFInp(this)'></div>"
       +"</div><label style='margin-bottom:7px'>Agent Pool - "+sf.agents.length+" agent"+(sf.agents.length!==1?"s":"")+"</label>"
       +"<div style='margin-bottom:9px;min-height:26px'>"+agHtml+(!sf.agents.length?"<span style='font-size:13px;color:var(--muted)'>No agents yet</span>":"")+"</div>"
-      +"<div style='display:flex;gap:7px'><input type='text' id='ai-"+sf.id+"' placeholder='Type agent name...' list='agent-dl' autocomplete='off' style='flex:1' data-sfid='"+sf.id+"' onkeydown='if(event.key==="Enter")addAgInp(this)'>"
+      +"<div style='display:flex;gap:7px'><input type='text' id='ai-"+sf.id+"' placeholder='Type agent name...' list='agent-dl' autocomplete='off' style='flex:1' data-sfid='"+sf.id+"' class='agent-inp'>"
       +"<button class='btn btn-p btn-sm' data-sfid='"+sf.id+"' onclick='addAgBtn(this)'>+ Add</button></div>"
       +"</div>";
     el.appendChild(div);
@@ -699,6 +699,14 @@ function exportCSV(){
   var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=sf.name.replace(/\s+/g,"_")+"_duty.csv";a.click();
 }
 var t=new Date();
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&e.target.classList.contains("agent-inp")){
+    addAgInp(e.target);
+  }
+  if(e.key==="Enter"&&e.target.id==="pwd-inp"){
+    checkPwd();
+  }
+});
 document.getElementById("rng-s").value=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-01";
 var saved=localStorage.getItem("sri_gas");
 if(saved){gasUrl=saved;document.getElementById("gas-url").value=saved;pull();}
