@@ -157,7 +157,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
   </div>
   <div class="hdr-r no-print">
     <span class="sync-status" id="sync-status">&#9679; Not connected</span>
-    <button class="btn btn-y btn-sm" onclick="switchTab('settings')">&#9881; Settings</button>
+    <button class="btn btn-y btn-sm" onclick="openSettings()">&#9881; Settings</button>
   </div>
 </div>
 
@@ -167,7 +167,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
   <button class="tb" onclick="switchTab('gen')">&#9314; Generate</button>
   <button class="tb" onclick="switchTab('sched')">&#9315; Schedule</button>
   <button class="tb" onclick="switchTab('stats')">&#9316; Stats</button>
-  <button class="tb" onclick="switchTab('settings')">&#9881; Settings</button>
+  <button class="tb" onclick="openSettings()">&#9881; Settings</button>
 </div>
 
 <!-- Sticky toolbar -->
@@ -175,6 +175,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
   <div class="sticky-bar-count"><strong id="sel-count">0</strong> days selected &mdash; assign:</div>
   <div id="sticky-ag-pills"></div>
   <button class="sticky-bar-remove" onclick="removeFromSelected()">&#10006; Remove agency</button>
+  <button class="sticky-bar-remove" onclick="removeAllFromSelected()" style="background:rgba(180,0,0,.35);border-color:rgba(220,53,69,.5)">&#10006;&#10006; Remove all</button>
   <button class="sticky-bar-clear" onclick="clearSelection()">Deselect all</button>
   <div id="remove-panel" style="display:none;width:100%;margin-top:8px;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px"></div>
   <div id="confirm-clear-panel" style="display:none;width:100%;margin-top:8px;background:rgba(200,0,0,.18);border-radius:8px;padding:10px 12px;border:1px solid rgba(200,0,0,.4)"></div>
@@ -299,6 +300,19 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 
 </div><!-- /main -->
 
+<!-- Reorder Modal -->
+<div class="modal-bg" id="reorder-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:22px 24px;width:360px;max-width:96vw;box-shadow:0 8px 40px rgba(0,0,0,.22)">
+    <div style="font-family:Playfair Display,serif;font-size:18px;color:var(--sp);margin-bottom:4px" id="reorder-title"></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Drag to reorder agencies, or click &#8679; &#8681; to move</div>
+    <div id="reorder-list" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeReorder()">Cancel</button>
+      <button class="btn btn-p btn-sm" onclick="applyReorder()">Save order</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="agent-suggestions"></datalist>
 
 <script>
@@ -306,7 +320,7 @@ var SG_PH={"2025-01-01":"New Year's Day","2025-01-29":"Chinese New Year","2025-0
 var MOS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 var MSH=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-var ALL_AGS=["SRI","PropNex","ERA","Huttons","OrangeTee","Others"];
+var ALL_AGS=["SRI","PropNex","ERA","Huttons","OrangeTee"];
 
 var SFs=[], sched={}, agentStore=[], gasUrl='';
 var aCalSf=null, aSchedSf=null, aStatsSf=null;
@@ -334,10 +348,10 @@ function agChip(a){return '<span class="ach ach-'+a.replace(/\s/g,'')+'">'+agSho
 function setSyncStatus(state,msg){
   var el=document.getElementById('sync-status');
   el.className='sync-status';
-  if(state==='ok'){el.classList.add('sync-ok');el.textContent='&#9679; '+msg;}
-  else if(state==='saving'){el.classList.add('sync-saving');el.textContent='&#8635; '+msg;}
-  else if(state==='err'){el.classList.add('sync-err');el.textContent='&#9679; '+msg;}
-  else{el.textContent='&#9679; '+msg;}
+  if(state==='ok'){el.classList.add('sync-ok');el.textContent='● '+msg;}
+  else if(state==='saving'){el.classList.add('sync-saving');el.textContent='↻ '+msg;}
+  else if(state==='err'){el.classList.add('sync-err');el.textContent='● '+msg;}
+  else{el.textContent='● '+msg;}
 }
 
 // ── GOOGLE APPS SCRIPT SYNC ───────────────────────────────────────────────
@@ -362,7 +376,7 @@ function pushToGAS(){
     .catch(function(){setSyncStatus('err','Save failed');});
 }
 function pullFromGAS(){
-  if(!gasUrl){setSyncStatus('','Not connected');return;}
+  if(!gasUrl){setSyncStatus('','● Not connected');return;}
   setSyncStatus('saving','Loading...');
   fetch(gasUrl+'?action=load')
     .then(function(r){return r.json();})
@@ -405,7 +419,7 @@ function testConnection(){
 function clearGASUrl(){
   gasUrl='';localStorage.removeItem('sri_gas_url');
   document.getElementById('gas-url').value='';
-  setSyncStatus('','Not connected');
+  setSyncStatus('','● Not connected');
   document.getElementById('conn-result').innerHTML='<span style="color:var(--muted)">Disconnected.</span>';
 }
 
@@ -593,6 +607,24 @@ function doRemoveAg(agency){
   document.getElementById('remove-panel').style.display='none';
   clearSelection();renderCalContent();autoSave();
 }
+function removeAllFromSelected(){
+  var sf=getCurrentCalSf();if(!sf)return;
+  var panel=document.getElementById('confirm-clear-panel');
+  if(panel.style.display==='block'){panel.style.display='none';return;}
+  var sel=getSel();if(!sel.length)return;
+  panel.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.85);margin-bottom:8px">Remove <strong>all agencies</strong> from '+sel.length+' selected day'+(sel.length!==1?'s':'')+'?</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button onclick="doRemoveAll()" style="background:#D32F2F;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;font-weight:600">Yes, remove all</button>'
+    +'<button onclick="document.getElementById('confirm-clear-panel').style.display='none'" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif">Cancel</button>'
+    +'</div>';
+  panel.style.display='block';
+}
+function doRemoveAll(){
+  var sf=getCurrentCalSf();if(!sf)return;
+  getSel().forEach(function(key){delete sf.dayData[key];});
+  document.getElementById('confirm-clear-panel').style.display='none';
+  clearSelection();renderCalContent();autoSave();
+}
 function clearAllAssignments(){
   var sf=getCurrentCalSf();if(!sf)return;
   var panel=document.getElementById('confirm-clear-panel');
@@ -765,6 +797,70 @@ function exportCSV(){
   a.download=sf.name.replace(/\s+/g,'_')+'_duty_schedule.csv';a.click();
 }
 
+
+// ── REORDER MODAL ──────────────────────────────────────────────────────────
+var reorderSfId=null, reorderKey=null, reorderList=[];
+function openReorder(sfId,key){
+  var sf=SFs.find(function(s){return s.id===sfId;});if(!sf||!sf.dayData[key])return;
+  reorderSfId=sfId;reorderKey=key;
+  reorderList=(sf.dayData[key].agencies||[]).slice();
+  document.getElementById('reorder-title').textContent=fmtD(key);
+  renderReorderList();
+  document.getElementById('reorder-modal').style.display='flex';
+}
+function fmtD(k){var d=new Date(k+'T00:00:00');return DOW[d.getDay()]+' '+d.getDate()+' '+MSH[d.getMonth()]+' '+d.getFullYear();}
+function renderReorderList(){
+  document.getElementById('reorder-list').innerHTML=reorderList.map(function(a,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:6px;background:'+agBg(a)+';border:1.5px solid '+agBdr(a)+'">'
+      +'<span style="font-size:13px;font-weight:600;color:'+agTxt(a)+';flex:1">'+a+'</span>'
+      +'<button onclick="moveAg('+i+',-1)" '+(i===0?'disabled':'')+' style="border:none;background:rgba(0,0,0,.1);border-radius:4px;cursor:pointer;padding:2px 7px;font-size:14px">&#8679;</button>'
+      +'<button onclick="moveAg('+i+',1)" '+(i===reorderList.length-1?'disabled':'')+' style="border:none;background:rgba(0,0,0,.1);border-radius:4px;cursor:pointer;padding:2px 7px;font-size:14px">&#8681;</button>'
+      +'<button onclick="removeAgFromReorder('+i+')" style="border:none;background:rgba(180,0,0,.15);color:#B71C1C;border-radius:4px;cursor:pointer;padding:2px 7px;font-size:13px">&#215;</button>'
+      +'</div>';
+  }).join('');
+}
+function moveAg(idx,dir){
+  var newIdx=idx+dir;
+  if(newIdx<0||newIdx>=reorderList.length)return;
+  var tmp=reorderList[idx];reorderList[idx]=reorderList[newIdx];reorderList[newIdx]=tmp;
+  renderReorderList();
+}
+function removeAgFromReorder(idx){reorderList.splice(idx,1);renderReorderList();}
+function applyReorder(){
+  var sf=SFs.find(function(s){return s.id===reorderSfId;});if(!sf)return;
+  if(!reorderList.length){delete sf.dayData[reorderKey];}
+  else{if(!sf.dayData[reorderKey])sf.dayData[reorderKey]={agencies:[]};sf.dayData[reorderKey].agencies=reorderList.slice();}
+  closeReorder();renderCalContent();autoSave();
+}
+function closeReorder(){document.getElementById('reorder-modal').style.display='none';}
+
+
+// ── SETTINGS PASSWORD ──────────────────────────────────────────────────────
+var ADMIN_PWD = 'sri2026'; // change this to your preferred password
+var settingsUnlocked = false;
+function openSettings(){
+  if(settingsUnlocked){switchTab('settings');return;}
+  document.getElementById('pwd-modal').style.display='flex';
+  document.getElementById('pwd-input').value='';
+  document.getElementById('pwd-err').style.display='none';
+  setTimeout(function(){document.getElementById('pwd-input').focus();},100);
+}
+function checkPwd(){
+  var v=document.getElementById('pwd-input').value;
+  if(v===ADMIN_PWD){
+    settingsUnlocked=true;
+    closePwdModal();
+    switchTab('settings');
+  } else {
+    document.getElementById('pwd-err').style.display='block';
+    document.getElementById('pwd-input').value='';
+    document.getElementById('pwd-input').focus();
+  }
+}
+function closePwdModal(){
+  document.getElementById('pwd-modal').style.display='none';
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 var t=new Date();
 document.getElementById('rng-s').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-01';
@@ -773,5 +869,19 @@ var saved=localStorage.getItem('sri_gas_url');
 if(saved){gasUrl=saved;document.getElementById('gas-url').value=saved;pullFromGAS();}
 else{renderSetup();}
 </script>
+
+<!-- Settings Password Modal -->
+<div id="pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:26px 28px;width:320px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+    <div style="font-family:'Playfair Display',serif;font-size:19px;color:var(--sp);margin-bottom:6px">Admin Access</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Settings are restricted to admins. Enter the password to continue.</div>
+    <input type="password" id="pwd-input" placeholder="Password" style="width:100%;margin-bottom:12px;padding:9px 12px;border:1px solid var(--bdr);border-radius:8px;font-size:14px;font-family:Inter,sans-serif" onkeydown="if(event.key==='Enter')checkPwd()">
+    <div id="pwd-err" style="font-size:12px;color:#B71C1C;margin-bottom:10px;display:none">Incorrect password.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closePwdModal()">Cancel</button>
+      <button class="btn btn-p btn-sm" onclick="checkPwd()">Enter</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
