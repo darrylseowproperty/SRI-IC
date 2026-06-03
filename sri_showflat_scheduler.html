@@ -156,7 +156,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
     </div>
   </div>
   <div class="hdr-r no-print">
-    <span class="sync-status" id="sync-status">&#9679; Not connected</span>
+    <span class="sync-status" id="sync-status">Not connected</span>
     <button class="btn btn-y btn-sm" onclick="openSettings()">&#9881; Settings</button>
   </div>
 </div>
@@ -327,7 +327,7 @@ var aCalSf=null, aSchedSf=null, aStatsSf=null;
 var selectedDays={};
 var saveTimer=null;
 
-// ── HELPERS ────────────────────────────────────────────────────────────────
+// -- HELPERS ----------------------------------------------------------------
 function uid(){return '_'+Math.random().toString(36).slice(2,9);}
 function dk(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
 function isPH(k){return !!SG_PH[k];}
@@ -344,17 +344,17 @@ function agBdr(a){return{SRI:'var(--sp)',PropNex:'var(--pn-b)',ERA:'var(--era-b)
 function agTxt(a){return{SRI:'var(--sy)',PropNex:'var(--pn-t)',ERA:'var(--era-t)',Huttons:'var(--htns-t)',OrangeTee:'var(--ott-t)',Others:'var(--oth-t)'}[a]||'#333';}
 function agChip(a){return '<span class="ach ach-'+a.replace(/\s/g,'')+'">'+agShort(a)+'</span>';}
 
-// ── SYNC STATUS ────────────────────────────────────────────────────────────
+// -- SYNC STATUS ------------------------------------------------------------
 function setSyncStatus(state,msg){
   var el=document.getElementById('sync-status');
   el.className='sync-status';
-  if(state==='ok'){el.classList.add('sync-ok');el.textContent='● '+msg;}
-  else if(state==='saving'){el.classList.add('sync-saving');el.textContent='↻ '+msg;}
-  else if(state==='err'){el.classList.add('sync-err');el.textContent='● '+msg;}
-  else{el.textContent='● '+msg;}
+  if(state==='ok'){el.classList.add('sync-ok');el.textContent='* '+msg;}
+  else if(state==='saving'){el.classList.add('sync-saving');el.textContent='~ '+msg;}
+  else if(state==='err'){el.classList.add('sync-err');el.textContent='* '+msg;}
+  else{el.textContent=msg;}
 }
 
-// ── GOOGLE APPS SCRIPT SYNC ───────────────────────────────────────────────
+// -- GOOGLE APPS SCRIPT SYNC -----------------------------------------------
 function getPayload(){
   return {SFs:SFs,sched:sched,agentStore:agentStore,rs:document.getElementById('rng-s').value,re:document.getElementById('rng-e').value};
 }
@@ -376,7 +376,7 @@ function pushToGAS(){
     .catch(function(){setSyncStatus('err','Save failed');});
 }
 function pullFromGAS(){
-  if(!gasUrl){setSyncStatus('','● Not connected');return;}
+  if(!gasUrl){setSyncStatus('','\u25cf Not connected');return;}
   setSyncStatus('saving','Loading...');
   fetch(gasUrl+'?action=load')
     .then(function(r){return r.json();})
@@ -390,10 +390,10 @@ function pullFromGAS(){
         renderSetup();
         setSyncStatus('ok','Loaded');
       } else {
-        setSyncStatus('ok','Connected — no data yet');
+        setSyncStatus('ok','Connected \u2014 no data yet');
       }
     })
-    .catch(function(){setSyncStatus('err','Could not load — check URL');});
+    .catch(function(){setSyncStatus('err','Could not load \u2014 check URL');});
 }
 function saveGASUrl(){
   var v=document.getElementById('gas-url').value.trim();
@@ -419,11 +419,11 @@ function testConnection(){
 function clearGASUrl(){
   gasUrl='';localStorage.removeItem('sri_gas_url');
   document.getElementById('gas-url').value='';
-  setSyncStatus('','● Not connected');
+  setSyncStatus('','\u25cf Not connected');
   document.getElementById('conn-result').innerHTML='<span style="color:var(--muted)">Disconnected.</span>';
 }
 
-// ── LOCAL BACKUP ───────────────────────────────────────────────────────────
+// -- LOCAL BACKUP -----------------------------------------------------------
 function saveLocal(){
   var data=getPayload();
   var a=document.createElement('a');
@@ -449,7 +449,7 @@ function loadLocal(){
   };inp.click();
 }
 
-// ── AGENT STORE ─────────────────────────────────────────────────────────────
+// -- AGENT STORE -------------------------------------------------------------
 function rebuildAgentStore(){
   agentStore=[];
   SFs.forEach(function(sf){sf.agents.forEach(function(a){if(agentStore.indexOf(a)<0)agentStore.push(a);});});
@@ -465,7 +465,7 @@ function updateAgentDatalist(){
   if(el)el.innerHTML=agentStore.length?agentStore.map(function(n){return '<span class="atag">'+n+'</span>';}).join(''):'<span style="font-size:13px;color:var(--muted)">No agents yet.</span>';
 }
 
-// ── TAB SWITCH ──────────────────────────────────────────────────────────────
+// -- TAB SWITCH --------------------------------------------------------------
 function switchTab(t){
   var names=['setup','cal','gen','sched','stats','settings'];
   var tabs=document.querySelectorAll('.tb');
@@ -483,7 +483,7 @@ function switchTab(t){
 }
 function onRC(){if(document.getElementById('tab-cal').classList.contains('active'))renderCalTab();}
 
-// ── SETUP ──────────────────────────────────────────────────────────────────
+// -- SETUP ------------------------------------------------------------------
 function addSF(){
   var n=document.getElementById('sf-name').value.trim();
   if(!n)return alert('Enter a name.');
@@ -530,7 +530,7 @@ function renderSetup(){
   }).join('');
 }
 
-// ── SELECTION ──────────────────────────────────────────────────────────────
+// -- SELECTION --------------------------------------------------------------
 function getCurrentCalSf(){return SFs.find(function(s){return s.id===aCalSf;});}
 function getSel(){var sf=getCurrentCalSf();if(!sf)return[];var s=selectedDays[sf.id];return s?Array.from(s):[];}
 function isSelected(key){var sf=getCurrentCalSf();if(!sf)return false;var s=selectedDays[sf.id];return s?s.has(key):false;}
@@ -643,7 +643,7 @@ function doConfirmClear(){
   clearSelection();renderCalContent();autoSave();
 }
 
-// ── CALENDAR ───────────────────────────────────────────────────────────────
+// -- CALENDAR ---------------------------------------------------------------
 function renderCalTab(){
   if(!SFs.length){document.getElementById('cal-sf-tabs').innerHTML='';document.getElementById('cal-content').innerHTML='<div class="info">Add showflats in Setup first.</div>';return;}
   if(!aCalSf||!SFs.find(function(s){return s.id===aCalSf;}))aCalSf=SFs[0].id;
@@ -676,7 +676,7 @@ function renderCalContent(){
   document.getElementById('cal-content').innerHTML=html;
 }
 
-// ── GENERATE ───────────────────────────────────────────────────────────────
+// -- GENERATE ---------------------------------------------------------------
 function renderGenTab(){
   if(!SFs.length){document.getElementById('gen-prev').innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Add showflats first.</div>';return;}
   document.getElementById('gen-prev').innerHTML=SFs.map(function(sf){
@@ -713,7 +713,7 @@ function generateAll(){
   renderGenTab();
 }
 
-// ── SCHEDULE ───────────────────────────────────────────────────────────────
+// -- SCHEDULE ---------------------------------------------------------------
 function renderSchedTab(){
   if(!SFs.length){document.getElementById('sched-tabs').innerHTML='';document.getElementById('sched-out').innerHTML='';return;}
   if(!aSchedSf||!SFs.find(function(s){return s.id===aSchedSf;}))aSchedSf=SFs[0].id;
@@ -752,7 +752,7 @@ function renderSchedOut(){
   el.innerHTML=html;
 }
 
-// ── STATS ───────────────────────────────────────────────────────────────────
+// -- STATS -------------------------------------------------------------------
 function renderStatsTab(){
   if(!SFs.length){document.getElementById('stats-tabs').innerHTML='';document.getElementById('stats-out').innerHTML='';return;}
   if(!aStatsSf||!SFs.find(function(s){return s.id===aStatsSf;}))aStatsSf=SFs[0].id;
@@ -774,7 +774,7 @@ function renderStatsOut(){
     +Object.entries(stats).sort(function(a,b){return(b[1].wd+b[1].we)-(a[1].wd+a[1].we);}).map(function(e){var n=e[0],s=e[1],t=s.wd+s.we,wp=Math.round(s.wd/mx*100),ep=Math.round(s.we/mx*100);return '<div class="bar-row"><div class="bar-name" title="'+n+'">'+n+'</div><div class="bar-tr"><div class="bar-wd" style="width:'+wp+'%"></div><div class="bar-we" style="width:'+ep+'%"></div></div><div class="bar-c">'+s.wd+'WD &middot; '+s.we+'WE &middot; <strong>'+t+'</strong></div></div>';}).join('')+'</div>';
 }
 
-// ── EXPORT CSV ─────────────────────────────────────────────────────────────
+// -- EXPORT CSV -------------------------------------------------------------
 function exportCSV(){
   var sf=SFs.find(function(s){return s.id===aSchedSf;});
   if(!sf||!sched[sf.id])return alert('Generate schedule first.');
@@ -798,7 +798,7 @@ function exportCSV(){
 }
 
 
-// ── REORDER MODAL ──────────────────────────────────────────────────────────
+// -- REORDER MODAL ----------------------------------------------------------
 var reorderSfId=null, reorderKey=null, reorderList=[];
 function openReorder(sfId,key){
   var sf=SFs.find(function(s){return s.id===sfId;});if(!sf||!sf.dayData[key])return;
@@ -835,7 +835,7 @@ function applyReorder(){
 function closeReorder(){document.getElementById('reorder-modal').style.display='none';}
 
 
-// ── SETTINGS PASSWORD ──────────────────────────────────────────────────────
+// -- SETTINGS PASSWORD ------------------------------------------------------
 var ADMIN_PWD = 'sri2026'; // change this to your preferred password
 var settingsUnlocked = false;
 function openSettings(){
@@ -861,7 +861,7 @@ function closePwdModal(){
   document.getElementById('pwd-modal').style.display='none';
 }
 
-// ── INIT ───────────────────────────────────────────────────────────────────
+// -- INIT -------------------------------------------------------------------
 var t=new Date();
 document.getElementById('rng-s').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-01';
 // Load saved GAS URL from localStorage
