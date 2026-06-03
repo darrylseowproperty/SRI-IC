@@ -7,7 +7,7 @@
 <title>SRI Showflat Duty Scheduler</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--sp:#4B2183;--spm:#6A35B0;--spl:#EEE4F8;--sy:#F5A800;--syl:#FFF0C0;--pn-bg:#E3F2FD;--pn-t:#0D47A1;--pn-b:#5BACD4;--era-bg:#FDECEA;--era-t:#B71C1C;--era-b:#D0312D;--htns-bg:#E8EEF9;--htns-t:#1A3E7A;--htns-b:#3A6EA8;--ott-bg:#FEF0E6;--ott-t:#B35A00;--ott-b:#F47621;--ph-bg:#F3E8FF;--ph-t:#6B21A8;--ph-b:#A855F7;--bg:#F8F6FB;--card:#fff;--bdr:#E4DDF0;--text:#1A1025;--muted:#7A6D8A;--r:10px}
+:root{--sp:#4B2183;--spm:#6A35B0;--spl:#EEE4F8;--sy:#F5A800;--syl:#FFF0C0;--pn-bg:#EBEBEB;--pn-t:#3D3D3D;--pn-b:#9E9E9E;--era-bg:#FDECEA;--era-t:#B71C1C;--era-b:#D0312D;--htns-bg:#E8EEF9;--htns-t:#1A3E7A;--htns-b:#3A6EA8;--ott-bg:#FEF0E6;--ott-t:#B35A00;--ott-b:#F47621;--ph-bg:#F3E8FF;--ph-t:#6B21A8;--ph-b:#A855F7;--bg:#F8F6FB;--card:#fff;--bdr:#E4DDF0;--text:#1A1025;--muted:#7A6D8A;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 .hdr{background:var(--sp);padding:0 32px;display:flex;align-items:stretch;justify-content:space-between;border-bottom:3px solid var(--sy)}
@@ -88,7 +88,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 .sc .sagents{font-size:14px;color:#fff;line-height:1.7;margin-top:3px;font-weight:600}
 .sc .sco{font-size:10px;margin-top:3px;padding-top:3px;border-top:1px solid rgba(255,255,255,.2)}.sc .sco-item{color:rgba(255,255,255,.7)}
 .s-ph{font-size:9px;background:rgba(168,85,247,.15);color:var(--ph-t);padding:1px 5px;border-radius:4px;margin-bottom:3px;font-weight:600;display:inline-block}.sri-d .s-ph{background:rgba(245,168,0,.2);color:var(--syl)}
-.sc-ag{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:6px;justify-content:center;text-align:center}
+.sc-ag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;text-align:center}
 .sca{font-size:14px;padding:3px 8px;border-radius:4px;font-weight:700}
 .sca-PropNex{background:var(--pn-bg);color:var(--pn-t)}.sca-ERA{background:var(--era-bg);color:var(--era-t)}.sca-Huttons{background:var(--htns-bg);color:var(--htns-t)}.sca-OrangeTee{background:var(--ott-bg);color:var(--ott-t)}
 .stat-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
@@ -308,9 +308,9 @@ var MONTHS = ["January","February","March","April","May","June","July","August",
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 var AGENCIES = ["SRI","PropNex","ERA","Huttons","OrangeTee"];
-var AG_BG = {SRI:"#4B2183",PropNex:"#E3F2FD",ERA:"#FDECEA",Huttons:"#E8EEF9",OrangeTee:"#FEF0E6"};
-var AG_TXT = {SRI:"#F5A800",PropNex:"#0D47A1",ERA:"#B71C1C",Huttons:"#1A3E7A",OrangeTee:"#B35A00"};
-var AG_BDR = {SRI:"#4B2183",PropNex:"#5BACD4",ERA:"#D0312D",Huttons:"#3A6EA8",OrangeTee:"#F47621"};
+var AG_BG = {SRI:"#4B2183",PropNex:"#EBEBEB",ERA:"#FDECEA",Huttons:"#E8EEF9",OrangeTee:"#FEF0E6"};
+var AG_TXT = {SRI:"#F5A800",PropNex:"#3D3D3D",ERA:"#B71C1C",Huttons:"#1A3E7A",OrangeTee:"#B35A00"};
+var AG_BDR = {SRI:"#4B2183",PropNex:"#9E9E9E",ERA:"#D0312D",Huttons:"#3A6EA8",OrangeTee:"#F47621"};
 var AG_SHORT = {SRI:"SRI",PropNex:"PN",ERA:"ERA",Huttons:"HTNS",OrangeTee:"OTT"};
 
 var SFs = [], sched = {}, agStore = [], gasUrl = "";
@@ -1151,7 +1151,7 @@ function renderSchedOut() {
         cell.appendChild(agentsDiv);
       } else if (ags.length) {
         var mainAg = ags[0];
-        cell = ce("div", { class: "sc" + (ph ? " ph-s" : ""), style: { background: AG_BG[mainAg], borderColor: AG_BDR[mainAg] } });
+        cell = ce("div", { class: "sc" + (ph ? " ph-s" : ""), style: { background: AG_BG[mainAg], borderColor: AG_BDR[mainAg], justifyContent: "center", alignItems: "center" } });
         cell.appendChild(ce("div", { class: "sd", style: { color: AG_TXT[mainAg] }, text: dateLabel }));
         if (ph) cell.appendChild(ce("div", { class: "s-ph", text: ph.split(" ").slice(0, 3).join(" ") }));
         var agBadges = ce("div", { class: "sc-ag" });
