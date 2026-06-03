@@ -143,6 +143,11 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 .ls{width:13px;height:13px;border-radius:3px;border:1.5px solid;flex-shrink:0}
 @media print{.hdr,.tabs,.sh-hdr .btn,.btn,.sfs,.leg,.no-print,.sticky-bar{display:none!important}.main{padding:0}.sc{min-height:80px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sched-mo{page-break-inside:avoid}}
 @media(max-width:700px){.main{padding:14px;padding-bottom:120px}.hdr{padding:0 14px}.g2,.g3{grid-template-columns:1fr}.sc{min-height:70px;padding:4px 5px}.tabs{padding:0 14px}.sticky-bar{padding:10px 14px;gap:8px}}
+
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--sp);color:#fff;padding:11px 22px;border-radius:30px;font-size:13px;font-weight:500;z-index:9999;transition:transform .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.25);border:2px solid var(--sy);white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.toast-err{background:#B71C1C;border-color:#ffaaaa}
+.toast.toast-ok{background:#166534;border-color:#4ADE80}
 </style>
 </head>
 <body>
@@ -314,6 +319,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 </div>
 
 <datalist id="agent-suggestions"></datalist>
+<div class="toast" id="toast"></div>
 
 <script>
 var SG_PH={"2025-01-01":"New Year's Day","2025-01-29":"Chinese New Year","2025-01-30":"Chinese New Year","2025-03-31":"Hari Raya Puasa","2025-04-18":"Good Friday","2025-05-01":"Labour Day","2025-05-12":"Vesak Day","2025-06-06":"Hari Raya Haji","2025-08-09":"National Day","2025-10-20":"Deepavali","2025-12-25":"Christmas Day","2026-01-01":"New Year's Day","2026-02-17":"Chinese New Year","2026-02-18":"Chinese New Year","2026-03-21":"Hari Raya Puasa","2026-04-03":"Good Friday","2026-05-01":"Labour Day","2026-05-27":"Hari Raya Haji","2026-06-01":"Vesak Day (in lieu)","2026-08-10":"National Day (in lieu)","2026-11-09":"Deepavali (in lieu)","2026-12-25":"Christmas Day","2027-01-01":"New Year's Day","2027-02-06":"Chinese New Year","2027-02-07":"Chinese New Year","2027-03-10":"Hari Raya Puasa","2027-03-26":"Good Friday","2027-05-01":"Labour Day","2027-05-26":"Hari Raya Haji","2027-05-31":"Vesak Day","2027-08-09":"National Day","2027-10-29":"Deepavali","2027-12-25":"Christmas Day"};
@@ -486,22 +492,21 @@ function onRC(){if(document.getElementById('tab-cal').classList.contains('active
 // -- SETUP ------------------------------------------------------------------
 function addSF(){
   var n=document.getElementById('sf-name').value.trim();
-  if(!n)return alert('Enter a name.');
-  if(SFs.find(function(s){return s.name===n;}))return alert('Already exists.');
+  if(!n){showToast('Enter a showflat name.','err');return;}
+  if(SFs.find(function(s){return s.name===n;})){showToast('Showflat already exists.','err');return;}
   SFs.push({id:uid(),name:n,wdCount:parseInt(document.getElementById('sf-wd').value)||2,weCount:parseInt(document.getElementById('sf-we').value)||3,agents:[],dayData:{}});
   document.getElementById('sf-name').value='';
   renderSetup();autoSave();
 }
 function rmSF(id){
-  if(!confirm('Remove showflat?'))return;
-  SFs=SFs.filter(function(s){return s.id!==id;});
-  delete sched[id];renderSetup();autoSave();
+  inlineConfirm('Remove this showflat and all its data?',function(){SFs=SFs.filter(function(s){return s.id!==id;});
+  delete sched[id];renderSetup();autoSave();});
 }
 function addAg(id){
   var i=document.getElementById('ai-'+id),n=i.value.trim();
   if(!n)return;
   var s=SFs.find(function(x){return x.id===id;});
-  if(s.agents.indexOf(n)>=0)return alert('Already added.');
+  if(s.agents.indexOf(n)>=0){showToast('Agent already in list.','err');return;}
   s.agents.push(n);
   if(agentStore.indexOf(n)<0){agentStore.push(n);agentStore.sort();updateAgentDatalist();}
   i.value='';renderSetup();autoSave();
@@ -689,7 +694,7 @@ function renderGenTab(){
 }
 function generateAll(){
   var errs=SFs.filter(function(sf){var sd=Object.keys(sf.dayData).filter(function(k){return(sf.dayData[k].agencies||[]).indexOf('SRI')>=0;}).length;return !sf.agents.length||!sd;});
-  if(errs.length)return alert('Fix these first:\n'+errs.map(function(s){return s.name;}).join('\n'));
+  if(errs.length){showToast('Fix: '+errs.map(function(s){return s.name;}).join(', '),'err');return;}
   SFs.forEach(function(sf){
     var sriDays=Object.keys(sf.dayData).filter(function(k){return(sf.dayData[k].agencies||[]).indexOf('SRI')>=0;}).sort();
     var agents=sf.agents.map(function(a){return{name:a,wd:0,we:0};});
@@ -709,7 +714,7 @@ function generateAll(){
     sched[sf.id]=result;
   });
   autoSave();
-  alert('Schedules generated! Go to the Schedule tab.');
+  showToast('Schedules generated! View in Schedule tab.','ok');
   renderGenTab();
 }
 
@@ -777,7 +782,7 @@ function renderStatsOut(){
 // -- EXPORT CSV -------------------------------------------------------------
 function exportCSV(){
   var sf=SFs.find(function(s){return s.id===aSchedSf;});
-  if(!sf||!sched[sf.id])return alert('Generate schedule first.');
+  if(!sf||!sched[sf.id]){showToast('Generate schedule first.','err');return;}
   var rows=sched[sf.id],mx=Math.max.apply(null,rows.map(function(r){return r.agents.length;}).concat([1]));
   var hdrs=['Date','Day','Month','Type','Public Holiday'];
   for(var i=0;i<mx;i++)hdrs.push('Agent '+(i+1));
@@ -834,6 +839,40 @@ function applyReorder(){
 }
 function closeReorder(){document.getElementById('reorder-modal').style.display='none';}
 
+
+
+// \u2500\u2500 TOAST & INLINE CONFIRM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var toastTimer=null;
+function showToast(msg,type){
+  var el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast'+(type?' toast-'+type:'');
+  clearTimeout(toastTimer);
+  setTimeout(function(){el.classList.add('show');},10);
+  toastTimer=setTimeout(function(){el.classList.remove('show');},3000);
+}
+
+function inlineConfirm(msg,onYes){
+  // Use the confirm-clear-panel in sticky bar if visible, else create a floating one
+  var overlay=document.getElementById('inline-confirm-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='inline-confirm-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:250;display:flex;align-items:center;justify-content:center';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML='<div style="background:#fff;border-radius:12px;padding:22px 24px;width:320px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">'
+    +'<div style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5">'+msg+'</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +'<button class="btn btn-sm" onclick="document.getElementById('inline-confirm-overlay').style.display='none'">Cancel</button>'
+    +'<button class="btn btn-p btn-sm" id="ic-yes">Confirm</button>'
+    +'</div></div>';
+  overlay.style.display='flex';
+  document.getElementById('ic-yes').onclick=function(){
+    overlay.style.display='none';
+    onYes();
+  };
+}
 
 // -- SETTINGS PASSWORD ------------------------------------------------------
 var ADMIN_PWD = 'sri2026'; // change this to your preferred password
