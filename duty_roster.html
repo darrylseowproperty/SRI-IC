@@ -163,11 +163,21 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
       </div>
     </div>
     <div class="info">Click dates to select them, then tap an agency in the bottom bar to assign. Click again to deselect. Public holidays (*) auto-use weekend counts.</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center" class="no-print">
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center" class="no-print">
       <span style="font-size:12px;color:var(--muted)">Quick select:</span>
       <button class="btn btn-sm" onclick="selectAllWeekdays()">All weekdays</button>
       <button class="btn btn-sm" onclick="selectAllWeekends()">All weekends / PH</button>
       <button class="btn btn-sm btn-d" onclick="clearAllAssignments()">Clear all</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center" class="no-print">
+      <span style="font-size:12px;color:var(--muted)">Copy / Paste:</span>
+      <button class="btn btn-sm" onclick="startCopy()">Copy selected</button>
+      <button class="btn btn-sm btn-p" onclick="pasteCopy()" id="btn-paste" style="display:none">Paste</button>
+      <button class="btn btn-sm btn-d" onclick="cancelCopy()" id="btn-cancel-copy" style="display:none">Cancel</button>
+    </div>
+    <div id="copy-bar" style="display:none;background:var(--spl);border:1px solid #C9B8E8;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--sp);align-items:center;gap:12px;flex-wrap:wrap">
+      <span id="copy-label"></span>
+      <span style="font-size:12px;color:var(--muted)">Select target dates then click Paste</span>
     </div>
     <div class="sfs" id="cal-tabs"></div>
     <div id="cal-body"></div>
@@ -209,6 +219,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
       <div class="li"><div class="ls" style="background:var(--ph-bg);border-color:var(--ph-b)"></div>Public holiday</div>
     </div>
     <div class="sfs" id="sched-tabs"></div>
+    <div class="info no-print" style="font-size:12px;padding:8px 14px;margin-bottom:12px">Tap any SRI duty day to swap agents between dates.</div>
     <div id="sched-out"></div>
   </div>
 
@@ -318,6 +329,9 @@ var activeCalSf = null, activeSchedSf = null, activeStatsSf = null;
 var selectedKeys = {};
 var saveTimer = null;
 var roSfId = null, roKey = null, roList = [];
+var swapSfId = null, swapDate = null;
+var copyBuffer = null; // {agencies: [], sourceKey: '', sourceType: 'day'|'week'}
+var copyMode = false;
 var settingsUnlocked = false;
 var ADMIN_PWD = "sri2026";
 
@@ -618,7 +632,7 @@ function addSF() {
     id: uid(), name: name,
     wdCount: parseInt(el("sf-wd").value) || 2,
     weCount: parseInt(el("sf-we").value) || 3,
-    agents: [], dayData: {}
+    agents: [], dayData: {}, unavailable: {}
   });
   el("sf-name").value = "";
   renderSetup();
@@ -716,6 +730,9 @@ function renderSetup() {
 
     var addAgBtn = ce("button", { class: "btn btn-p btn-sm", text: "+ Add" });
     addAgBtn.onclick = (function(sid) { return function() { addAgent(sid); }; })(sf.id);
+
+    var unavailBtn = ce("button", { class: "btn btn-sm", style: { marginTop: "10px", color: "#6B21A8", borderColor: "#A855F7" }, text: "Set unavailability" });
+    unavailBtn.onclick = (function(sid) { return function() { openUnavail(sid); }; })(sf.id);
 
     var agRow = ce("div", { style: { display: "flex", gap: "7px" } }, [agInp, addAgBtn]);
 
@@ -866,7 +883,58 @@ function clearAllAssignments() {
 }
 
 // -- CALENDAR ------------------------------------------------------------------
-function onRangeChange() {
+function startCopy() {
+  var sf = getCurSf(); if (!sf) return;
+  var sel = getSelected();
+  if (!sel.length) { toast("Select days to copy first", "err"); return; }
+  // Store each selected date's agencies in sorted date order
+  var sortedSel = sel.slice().sort();
+  var copied = sortedSel.map(function(k) {
+    var dd = sf.dayData[k];
+    return { key: k, agencies: dd ? dd.agencies.slice() : [] };
+  });
+  copyBuffer = copied;
+  clearSelection();
+  var label = copied.length === 1
+    ? "Copied 1 day: " + (copied[0].agencies.join(" / ") || "empty")
+    : "Copied " + copied.length + " days";
+  toast(label + " -- select target dates and tap Paste", "ok");
+  updateCopyPasteBar();
+}
+
+function pasteCopy() {
+  var sf = getCurSf(); if (!sf) return;
+  if (!copyBuffer || !copyBuffer.length) { toast("Nothing copied yet", "err"); return; }
+  var sel = getSelected();
+  if (!sel.length) { toast("Select target dates first", "err"); return; }
+  var sortedTarget = sel.slice().sort();
+
+  if (copyBuffer.length === 1) {
+    // Single day copied: apply same agencies to ALL target dates
+    var srcAgs = copyBuffer[0].agencies.slice();
+    sortedTarget.forEach(function(k) {
+      if (srcAgs.length) sf.dayData[k] = { agencies: srcAgs.slice() };
+      else delete sf.dayData[k];
+    });
+  } else {
+    // Multiple days: map sequentially -- first copied day to first target, etc.
+    sortedTarget.forEach(function(k, i) {
+      var src = copyBuffer[i % copyBuffer.length];
+      if (src.agencies.length) sf.dayData[k] = { agencies: src.agencies.slice() };
+      else delete sf.dayData[k];
+    });
+  }
+  clearSelection(); renderCalBody(); autoSave();
+  toast("Pasted to " + sortedTarget.length + " day" + (sortedTarget.length !== 1 ? "s" : ""), "ok");
+}
+
+function cancelCopy() {
+  copyBuffer = null;
+  updateCopyPasteBar();
+  clearSelection();
+}
+
+function onRangeChange() { {
   if (el("tab-cal").classList.contains("active")) renderCal();
 }
 
@@ -990,15 +1058,15 @@ function renderReorderList() {
   var container = el("ro-list");
   container.innerHTML = "";
   roList.forEach(function(ag, i) {
-    var upBtn = ce("button", { text: "Up", style: { border: "none", background: "rgba(0,0,0,.1)", borderRadius: "4px", cursor: "pointer", padding: "2px 7px" } });
-    if (i === 0) upBtn.disabled = true;
+    var upBtn = ce("button", { text: "\u25B2", style: { border: "none", background: "rgba(0,0,0,.12)", borderRadius: "6px", cursor: "pointer", padding: "6px 10px", fontSize: "14px", lineHeight: "1", minWidth: "36px" } });
+    if (i === 0) { upBtn.disabled = true; upBtn.style.opacity = "0.25"; }
     upBtn.onclick = (function(idx) { return function() { moveReorder(idx, -1); }; })(i);
 
-    var dnBtn = ce("button", { text: "Dn", style: { border: "none", background: "rgba(0,0,0,.1)", borderRadius: "4px", cursor: "pointer", padding: "2px 7px" } });
-    if (i === roList.length - 1) dnBtn.disabled = true;
+    var dnBtn = ce("button", { text: "\u25BC", style: { border: "none", background: "rgba(0,0,0,.12)", borderRadius: "6px", cursor: "pointer", padding: "6px 10px", fontSize: "14px", lineHeight: "1", minWidth: "36px" } });
+    if (i === roList.length - 1) { dnBtn.disabled = true; dnBtn.style.opacity = "0.25"; }
     dnBtn.onclick = (function(idx) { return function() { moveReorder(idx, 1); }; })(i);
 
-    var rmBtn = ce("button", { text: "X", style: { border: "none", background: "rgba(180,0,0,.15)", color: "#B71C1C", borderRadius: "4px", cursor: "pointer", padding: "2px 7px" } });
+    var rmBtn = ce("button", { text: "\u2715", style: { border: "none", background: "rgba(180,0,0,.15)", color: "#B71C1C", borderRadius: "6px", cursor: "pointer", padding: "6px 10px", fontSize: "14px", lineHeight: "1", minWidth: "36px" } });
     rmBtn.onclick = (function(idx) { return function() { roList.splice(idx, 1); renderReorderList(); }; })(i);
 
     var row = ce("div", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "8px", marginBottom: "6px", background: AG_BG[ag], border: "1.5px solid " + AG_BDR[ag] } }, [
@@ -1028,6 +1096,100 @@ function applyReorder() {
 function closeReorder() { el("ro-overlay").style.display = "none"; }
 
 // -- GENERATE ------------------------------------------------------------------
+// -- UNAVAILABILITY OVERRIDES -------------------------------------------
+function openUnavail(sfId) {
+  var sf = SFs.find(function(s) { return s.id === sfId; });
+  if (!sf) return;
+  if (!sf.unavailable) sf.unavailable = {};
+  var overlay = document.getElementById("unavail-overlay");
+  document.getElementById("unavail-sf-name").textContent = sf.name;
+  document.getElementById("unavail-sf-id").value = sfId;
+  renderUnavailList(sf);
+  overlay.style.display = "flex";
+}
+
+function closeUnavail() {
+  document.getElementById("unavail-overlay").style.display = "none";
+}
+
+function addUnavail() {
+  var sfId = document.getElementById("unavail-sf-id").value;
+  var sf = SFs.find(function(s) { return s.id === sfId; });
+  if (!sf) return;
+  if (!sf.unavailable) sf.unavailable = {};
+  var agent = document.getElementById("unavail-agent").value;
+  var date = document.getElementById("unavail-date").value;
+  if (!agent || !date) { toast("Select agent and date", "err"); return; }
+  if (!sf.unavailable[agent]) sf.unavailable[agent] = [];
+  if (sf.unavailable[agent].indexOf(date) < 0) {
+    sf.unavailable[agent].push(date);
+    sf.unavailable[agent].sort();
+  }
+  renderUnavailList(sf);
+  autoSave();
+}
+
+function removeUnavail(sfId, agent, date) {
+  var sf = SFs.find(function(s) { return s.id === sfId; });
+  if (!sf || !sf.unavailable || !sf.unavailable[agent]) return;
+  sf.unavailable[agent] = sf.unavailable[agent].filter(function(d) { return d !== date; });
+  if (!sf.unavailable[agent].length) delete sf.unavailable[agent];
+  renderUnavailList(sf);
+  autoSave();
+}
+
+function renderUnavailList(sf) {
+  var sfId = sf.id;
+  var container = document.getElementById("unavail-list");
+  container.innerHTML = "";
+
+  // Populate agent dropdown
+  var agentSel = document.getElementById("unavail-agent");
+  agentSel.innerHTML = "<option value=''>-- Select agent --</option>";
+  sf.agents.forEach(function(a) {
+    var opt = document.createElement("option");
+    opt.value = a; opt.textContent = a;
+    agentSel.appendChild(opt);
+  });
+
+  var unavail = sf.unavailable || {};
+  var keys = Object.keys(unavail);
+  if (!keys.length) {
+    container.appendChild(ce("div", { style: { fontSize: "13px", color: "#7A6D8A", padding: "8px 0" }, text: "No unavailability set." }));
+    return;
+  }
+  keys.sort().forEach(function(agent) {
+    var dates = unavail[agent];
+    if (!dates || !dates.length) return;
+    var agRow = ce("div", { style: { marginBottom: "10px" } });
+    agRow.appendChild(ce("div", { style: { fontSize: "13px", fontWeight: "600", color: "#4B2183", marginBottom: "4px" }, text: agent }));
+    var dateRow = ce("div", { style: { display: "flex", flexWrap: "wrap", gap: "6px" } });
+    dates.forEach(function(d) {
+      var rmBtn = ce("button", { style: { border: "none", background: "rgba(180,0,0,.12)", color: "#B71C1C", borderRadius: "6px", cursor: "pointer", padding: "3px 8px", fontSize: "12px" }, text: "x" });
+      rmBtn.onclick = (function(ag, dt) { return function() { removeUnavail(sfId, ag, dt); }; })(agent, d);
+      var tag = ce("span", { style: { display: "inline-flex", alignItems: "center", gap: "4px", background: "#F3E8FF", border: "1px solid #A855F7", borderRadius: "20px", padding: "3px 8px", fontSize: "12px", color: "#6B21A8" } });
+      tag.appendChild(ce("span", { text: formatDate(d) }));
+      tag.appendChild(rmBtn);
+      dateRow.appendChild(tag);
+    });
+    agRow.appendChild(dateRow);
+    container.appendChild(agRow);
+  });
+}
+
+// Apply unavailability when generating -- skip unavailable agents for their dates
+function getUnavailSet(sf) {
+  var map = {};
+  if (!sf.unavailable) return map;
+  Object.keys(sf.unavailable).forEach(function(agent) {
+    sf.unavailable[agent].forEach(function(d) {
+      if (!map[d]) map[d] = [];
+      map[d].push(agent);
+    });
+  });
+  return map;
+}
+
 function renderGen() {
   var container = el("gen-prev");
   container.innerHTML = "";
@@ -1089,7 +1251,10 @@ function generateAll() {
           if (at2 !== bt2) return at2 - bt2;
           return (a.wd + a.we) - (b.wd + b.we);
         });
-        var picked = q.slice(0, Math.min(cnt, sf.agents.length)).map(function(a) { return a.name; });
+        var unavailMap = getUnavailSet(sf);
+        var unavailToday = unavailMap[day.key] || [];
+        var available = q.filter(function(a) { return unavailToday.indexOf(a.name) < 0; });
+        var picked = available.slice(0, Math.min(cnt, available.length)).map(function(a) { return a.name; });
         picked.forEach(function(name) {
           var ag = agents.find(function(a) { return a.name === name; });
           if (day.we) ag.we++; else ag.wd++;
@@ -1106,6 +1271,86 @@ function generateAll() {
 }
 
 // -- SCHEDULE ------------------------------------------------------------------
+// -- SWAP DUTIES -------------------------------------------------------
+function openSwap(sfId, date) {
+  var sf = SFs.find(function(s) { return s.id === sfId; });
+  if (!sf || !sched[sfId]) return;
+  var row = sched[sfId].find(function(r) { return r.date === date; });
+  if (!row || !row.agents.length) return;
+  swapSfId = sfId; swapDate = date;
+
+  document.getElementById("swap-date-label").textContent = formatDate(date);
+
+  // Populate agent A dropdown (agents on this day)
+  var selA = document.getElementById("swap-agent-a");
+  selA.innerHTML = "<option value=''>-- Select agent --</option>";
+  row.agents.forEach(function(a) {
+    var opt = document.createElement("option");
+    opt.value = a; opt.textContent = a;
+    selA.appendChild(opt);
+  });
+
+  // Populate target date dropdown (all other SRI duty days)
+  var selDate = document.getElementById("swap-target-date");
+  selDate.innerHTML = "<option value=''>-- Select date --</option>";
+  sched[sfId].forEach(function(r) {
+    if (r.date !== date && r.agents.length) {
+      var opt = document.createElement("option");
+      opt.value = r.date;
+      opt.textContent = formatDate(r.date);
+      selDate.appendChild(opt);
+    }
+  });
+
+  document.getElementById("swap-agent-b-row").style.display = "none";
+  document.getElementById("swap-result").textContent = "";
+  document.getElementById("swap-overlay").style.display = "flex";
+}
+
+function onSwapDateChange() {
+  var targetDate = document.getElementById("swap-target-date").value;
+  if (!targetDate || !swapSfId) return;
+  var row = sched[swapSfId].find(function(r) { return r.date === targetDate; });
+  if (!row) return;
+  var selB = document.getElementById("swap-agent-b");
+  selB.innerHTML = "<option value=''>-- Select agent --</option>";
+  row.agents.forEach(function(a) {
+    var opt = document.createElement("option");
+    opt.value = a; opt.textContent = a;
+    selB.appendChild(opt);
+  });
+  document.getElementById("swap-agent-b-row").style.display = "block";
+}
+
+function confirmSwap() {
+  var agentA = document.getElementById("swap-agent-a").value;
+  var targetDate = document.getElementById("swap-target-date").value;
+  var agentB = document.getElementById("swap-agent-b").value;
+  var res = document.getElementById("swap-result");
+  if (!agentA || !targetDate || !agentB) { res.textContent = "Please fill in all fields."; res.style.color = "#B71C1C"; return; }
+
+  var rowA = sched[swapSfId].find(function(r) { return r.date === swapDate; });
+  var rowB = sched[swapSfId].find(function(r) { return r.date === targetDate; });
+  if (!rowA || !rowB) return;
+
+  var idxA = rowA.agents.indexOf(agentA);
+  var idxB = rowB.agents.indexOf(agentB);
+  if (idxA < 0 || idxB < 0) { res.textContent = "Agent not found."; res.style.color = "#B71C1C"; return; }
+
+  // Perform swap
+  rowA.agents[idxA] = agentB;
+  rowB.agents[idxB] = agentA;
+
+  autoSave();
+  res.textContent = agentA + " and " + agentB + " swapped successfully.";
+  res.style.color = "#166534";
+  renderSchedOut();
+}
+
+function closeSwap() {
+  document.getElementById("swap-overlay").style.display = "none";
+}
+
 function renderSched() {
   if (!SFs.length) { empty("sched-tabs"); empty("sched-out"); return; }
   if (!activeSchedSf || !SFs.find(function(s) { return s.id === activeSchedSf; })) activeSchedSf = SFs[0].id;
@@ -1141,7 +1386,10 @@ function renderSchedOut() {
       var dateLabel = DAYS[dayOfWeek(k)] + " " + d2 + " " + MONTHS_S[m];
       var cell;
       if (sr) {
-        cell = ce("div", { class: "sc sri-d" + (ph ? " ph-s" : "") });
+        cell = ce("div", { class: "sc sri-d" + (ph ? " ph-s" : ""), style: { cursor: "pointer" } });
+        (function(sid, dt) {
+          cell.onclick = function() { openSwap(sid, dt); };
+        })(sf.id, k);
         cell.appendChild(ce("div", { class: "sd", text: dateLabel }));
         if (ph) cell.appendChild(ce("div", { class: "s-ph", text: ph.split(" ").slice(0, 3).join(" ") }));
         var allAgsHeader = ["SRI"].concat(ags.filter(function(a){return a!=="SRI";}));
@@ -1273,5 +1521,52 @@ function exportCSV() {
 })();
 
 </script>
+
+<div class="overlay" id="unavail-overlay" style="display:none">
+  <div class="overlay-box" style="width:480px;max-width:96vw;max-height:80vh;overflow-y:auto">
+    <h3 id="unavail-sf-name" style="margin-bottom:4px"></h3>
+    <p style="font-size:13px;color:#7A6D8A;margin-bottom:16px">Mark agents who cannot attend specific dates. They will be skipped when generating the schedule.</p>
+    <input type="hidden" id="unavail-sf-id">
+    <div class="g2" style="margin-bottom:10px">
+      <div>
+        <label>Agent</label>
+        <select id="unavail-agent"></select>
+      </div>
+      <div>
+        <label>Date</label>
+        <input type="date" id="unavail-date">
+      </div>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="addUnavail()" style="margin-bottom:16px">+ Add</button>
+    <div class="ct">Current unavailability</div>
+    <div id="unavail-list"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-sm" onclick="closeUnavail()">Close</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="swap-overlay" style="display:none">
+  <div class="overlay-box" style="width:420px;max-width:96vw">
+    <h3 style="margin-bottom:4px">Swap Duty</h3>
+    <p id="swap-date-label" style="font-size:13px;color:#7A6D8A;margin-bottom:16px"></p>
+    <div style="margin-bottom:12px">
+      <label>Agent to swap out (from this day)</label>
+      <select id="swap-agent-a"></select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label>Swap with date</label>
+      <select id="swap-target-date" onchange="onSwapDateChange()"></select>
+    </div>
+    <div id="swap-agent-b-row" style="display:none;margin-bottom:16px">
+      <label>Agent to swap in (from target date)</label>
+      <select id="swap-agent-b"></select>
+    </div>
+    <p id="swap-result" style="font-size:13px;margin-bottom:12px"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeSwap()">Cancel</button>
+      <button class="btn btn-p btn-sm" onclick="confirmSwap()">Confirm Swap</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
