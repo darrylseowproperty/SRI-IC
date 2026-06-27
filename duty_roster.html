@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler</title>
+<title>SRI Showflat Duty Scheduler v3</title>
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--sp:#4B2183;--spm:#6A35B0;--spl:#EEE4F8;--sy:#F5A800;--syl:#FFF0C0;--pn-bg:#EBEBEB;--pn-t:#3D3D3D;--pn-b:#9E9E9E;--era-bg:#FDECEA;--era-t:#B71C1C;--era-b:#D0312D;--htns-bg:#E8EEF9;--htns-t:#1A3E7A;--htns-b:#3A6EA8;--ott-bg:#FEF0E6;--ott-t:#B35A00;--ott-b:#F47621;--ph-bg:#F3E8FF;--ph-t:#6B21A8;--ph-b:#A855F7;--bg:#F8F6FB;--card:#fff;--bdr:#E4DDF0;--text:#1A1025;--muted:#7A6D8A;--r:10px}
@@ -934,7 +936,7 @@ function cancelCopy() {
   clearSelection();
 }
 
-function onRangeChange() { {
+function onRangeChange() {
   if (el("tab-cal").classList.contains("active")) renderCal();
 }
 
