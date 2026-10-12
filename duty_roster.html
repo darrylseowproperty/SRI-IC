@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler v5</title>
+<title>SRI Showflat Duty Scheduler v6</title>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -310,12 +310,12 @@ var SG_PH = {
   "2025-10-20":"Deepavali","2025-12-25":"Christmas Day",
   "2026-01-01":"New Year's Day","2026-02-17":"Chinese New Year","2026-02-18":"Chinese New Year",
   "2026-03-21":"Hari Raya Puasa","2026-04-03":"Good Friday","2026-05-01":"Labour Day",
-  "2026-05-27":"Hari Raya Haji","2026-06-01":"Vesak Day (in lieu)","2026-08-10":"National Day (in lieu)",
-  "2026-11-09":"Deepavali (in lieu)","2026-12-25":"Christmas Day",
-  "2027-01-01":"New Year's Day","2027-02-06":"Chinese New Year","2027-02-07":"Chinese New Year",
+  "2026-05-27":"Hari Raya Haji","2026-05-31":"Vesak Day","2026-06-01":"Vesak Day (in lieu)","2026-08-09":"National Day","2026-08-10":"National Day (in lieu)",
+  "2026-11-08":"Deepavali","2026-11-09":"Deepavali (in lieu)","2026-12-25":"Christmas Day",
+  "2027-01-01":"New Year's Day","2027-02-06":"Chinese New Year","2027-02-07":"Chinese New Year","2027-02-08":"Chinese New Year (in lieu)",
   "2027-03-10":"Hari Raya Puasa","2027-03-26":"Good Friday","2027-05-01":"Labour Day",
-  "2027-05-26":"Hari Raya Haji","2027-05-31":"Vesak Day","2027-08-09":"National Day",
-  "2027-10-29":"Deepavali","2027-12-25":"Christmas Day"
+  "2027-05-17":"Hari Raya Haji","2027-05-20":"Vesak Day","2027-08-09":"National Day",
+  "2027-10-28":"Deepavali","2027-12-25":"Christmas Day"
 };
 var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1426,7 +1426,7 @@ function renderSchedOut() {
         })(sf.id, k);
         cell.appendChild(ce("div", { class: "sd", text: dateLabel }));
         if (ph) cell.appendChild(ce("div", { class: "s-ph", text: ph.split(" ").slice(0, 3).join(" ") }));
-        var allAgsHeader = ["SRI"].concat(ags.filter(function(a){return a!=="SRI";}));
+        var allAgsHeader = ags.slice();
         cell.appendChild(ce("div", { class: "sa", text: allAgsHeader.map(function(a){return AG_SHORT[a]||a;}).join(" / ") }));
         var agentsDiv = ce("div", { class: "sagents" });
         sr.agents.forEach(function(a) { agentsDiv.appendChild(ce("div", { text: a })); });
@@ -1527,11 +1527,11 @@ function exportCSV() {
   rows.forEach(function(r) {
     var d = new Date(r.date + "T00:00:00");
     var dd = sf.dayData[r.date] || { agencies: [] };
-    var coAgs = dd.agencies.filter(function(a) { return a !== "SRI"; });
+    var orderedAgs = dd.agencies.slice();
     var row = [r.date, DAYS[d.getDay()], MONTHS[d.getMonth()], r.we ? "Weekend/PH" : "Weekday", SG_PH[r.date] || ""];
     r.agents.forEach(function(a) { row.push(a); });
     for (var j = r.agents.length; j < mx; j++) row.push("");
-    row.push(["SRI"].concat(coAgs).join(" / "));
+    row.push(orderedAgs.join(" / "));
     csv += row.map(function(v) { return '"' + v + '"'; }).join(",") + "\n";
   });
   var a = document.createElement("a");
