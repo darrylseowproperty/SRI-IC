@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler v3</title>
+<title>SRI Showflat Duty Scheduler v4</title>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -174,8 +174,8 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center" class="no-print">
       <span style="font-size:12px;color:var(--muted)">Copy / Paste:</span>
       <button class="btn btn-sm" onclick="startCopy()">Copy selected</button>
-      <button class="btn btn-sm btn-p" onclick="pasteCopy()" id="btn-paste" style="display:none">Paste</button>
-      <button class="btn btn-sm btn-d" onclick="cancelCopy()" id="btn-cancel-copy" style="display:none">Cancel</button>
+      <button class="btn btn-sm btn-p" onclick="pasteCopy()" id="btn-paste" style="opacity:0.35;pointer-events:none">Paste</button>
+      <button class="btn btn-sm btn-d" onclick="cancelCopy()" id="btn-cancel-copy" style="opacity:0.35;pointer-events:none">Cancel</button>
     </div>
     <div id="copy-bar" style="display:none;background:var(--spl);border:1px solid #C9B8E8;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--sp);align-items:center;gap:12px;flex-wrap:wrap">
       <span id="copy-label"></span>
@@ -902,6 +902,18 @@ function startCopy() {
     : "Copied " + copied.length + " days";
   toast(label + " -- select target dates and tap Paste", "ok");
   updateCopyPasteBar();
+}
+
+function updateCopyPasteBar() {
+  var btnPaste = document.getElementById("btn-paste");
+  var btnCancel = document.getElementById("btn-cancel-copy");
+  if (copyBuffer && copyBuffer.length) {
+    if (btnPaste) { btnPaste.style.opacity = "1"; btnPaste.style.pointerEvents = "auto"; }
+    if (btnCancel) { btnCancel.style.opacity = "1"; btnCancel.style.pointerEvents = "auto"; }
+  } else {
+    if (btnPaste) { btnPaste.style.opacity = "0.35"; btnPaste.style.pointerEvents = "none"; }
+    if (btnCancel) { btnCancel.style.opacity = "0.35"; btnCancel.style.pointerEvents = "none"; }
+  }
 }
 
 function pasteCopy() {
