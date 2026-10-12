@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler v4</title>
+<title>SRI Showflat Duty Scheduler v5</title>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -1032,8 +1032,7 @@ function makeCalCell(sf, y, m, d) {
   cell.appendChild(ce("span", { class: "dn", text: String(d) }));
 
   var chipsDiv = ce("div", { class: "ag-chips" });
-  if (hasSRI) chipsDiv.appendChild(makeChip("SRI"));
-  ags.filter(function(a) { return a !== "SRI"; }).forEach(function(a) {
+  ags.forEach(function(a) {
     chipsDiv.appendChild(makeChip(a));
   });
   cell.appendChild(chipsDiv);
@@ -1221,25 +1220,26 @@ function renderGen() {
     var status = issues.length
       ? ce("span", { style: { fontSize: "12px", color: "#B35A00" }, text: issues.join(", ") })
       : ce("span", { style: { fontSize: "12px", color: "#166534", fontWeight: "600" }, text: "Ready" });
+    var genBtn = ce("button", {
+      class: "btn btn-sm btn-p",
+      text: "Generate",
+      style: { marginLeft: "12px" }
+    });
+    genBtn.onclick = (function(sfId) { return function() { generateOne(sfId); }; })(sf.id);
+    if (issues.length) { genBtn.disabled = true; genBtn.style.opacity = "0.4"; }
     var row = ce("div", { class: "card", style: { marginBottom: "9px", display: "flex", alignItems: "center", justifyContent: "space-between" } }, [
       ce("div", {}, [
         ce("strong", { text: sf.name }),
         ce("span", { style: { fontSize: "12px", color: "#7A6D8A", marginLeft: "10px" }, text: sf.agents.length + " agents, " + sriDays + " SRI days" })
       ]),
-      status
+      ce("div", { style: { display: "flex", alignItems: "center" } }, [status, genBtn])
     ]);
     container.appendChild(row);
   });
 }
 
-function generateAll() {
-  var errors = SFs.filter(function(sf) {
-    var sd = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).length;
-    return !sf.agents.length || !sd;
-  });
-  if (errors.length) { toast("Fix: " + errors.map(function(s) { return s.name; }).join(", "), "err"); return; }
 
-  SFs.forEach(function(sf) {
+function runGenerateForSf(sf) {
     var sriDays = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).sort();
     var agents = sf.agents.map(function(a) { return { name: a, wd: 0, we: 0 }; });
     var result = [], weeks = {};
@@ -1278,7 +1278,27 @@ function generateAll() {
       });
     });
     sched[sf.id] = result;
+  }
+
+function generateOne(sfId) {
+  var sf = SFs.find(function(s) { return s.id === sfId; });
+  if (!sf) return;
+  var sd = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).length;
+  if (!sf.agents.length) { toast(sf.name + ": No agents", "err"); return; }
+  if (!sd) { toast(sf.name + ": No SRI days", "err"); return; }
+  runGenerateForSf(sf);
+  save(); renderGen();
+  toast("Generated: " + sf.name, "ok");
+}
+
+function generateAll() {
+  var errors = SFs.filter(function(sf) {
+    var sd = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).length;
+    return !sf.agents.length || !sd;
   });
+  if (errors.length) { toast("Fix: " + errors.map(function(s) { return s.name; }).join(", "), "err"); return; }
+
+  SFs.forEach(function(sf) { runGenerateForSf(sf); });;
   autoSave();
   toast("Schedules generated! View in Schedule tab.", "ok");
   renderGen();
