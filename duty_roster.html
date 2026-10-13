@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler v8</title>
+<title>SRI Showflat Duty Scheduler v9</title>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -109,6 +109,8 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 .ro-box{width:380px}
 .ro-list{}
 @media print{.hdr,.tabs,.sh-hdr .btn,.btn,.sfs,.leg,.no-print,.sbar{display:none!important}.main{padding:0}.sc{min-height:80px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sched-mo{page-break-inside:avoid}}
+.warn-bar{background:#FFF1CC;border:1px solid #F0D58A;color:#7A4B00;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;margin-bottom:14px}
+.sp-note{font-size:10.5px;background:#FFF1CC;color:#7A4B00;border-radius:4px;padding:2px 6px;margin-top:5px;line-height:1.35;font-weight:600}
 @page{size:A4 landscape;margin:9mm}
 @media print{
   body{background:#fff!important}
@@ -215,11 +217,19 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
     <div class="card">
       <div class="ct">Rules</div>
       <ul style="font-size:13px;color:var(--muted);line-height:2.2;padding-left:18px">
-        <li>No agent gets a 2nd duty in the same week unless unavoidable</li>
+        <li>No agent gets 2 duties within 7 days of each other, unless unavoidable</li>
         <li>Weekday and weekend duties tracked in separate queues</li>
         <li>Public holidays treated as weekend duties</li>
         <li>Priority queue self-corrects across all weeks for equal totals</li>
       </ul>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Assignment order</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="sfb active" id="gm-alpha" onclick="setGenMode('alpha')">Alphabetical (weekdays A-Z, weekends Z-A)</button>
+        <button class="sfb" id="gm-random" onclick="setGenMode('random')">Random</button>
+      </div>
+      <div id="gm-help" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
     </div>
     <div id="gen-prev"></div>
     <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
@@ -233,7 +243,7 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
       <h2 class="sh-t">Schedule</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn no-print" onclick="exportCSV()">Export CSV</button>
-        <button class="btn btn-y no-print" onclick="window.print()">Print</button>
+        <button class="btn btn-y no-print" onclick="savePdf()">Save as PDF</button>
       </div>
     </div>
     <div class="leg no-print">
@@ -344,6 +354,7 @@ var SG_PH = {
 var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+var DAYS_MON = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 var AGENCIES = ["SRI","PropNex","ERA","Huttons","OrangeTee"];
 var AG_BG = {SRI:"#4B2183",PropNex:"#EBEBEB",ERA:"#FDECEA",Huttons:"#E8EEF9",OrangeTee:"#FEF0E6"};
 var AG_TXT = {SRI:"#F5A800",PropNex:"#3D3D3D",ERA:"#B71C1C",Huttons:"#1A3E7A",OrangeTee:"#B35A00"};
@@ -378,9 +389,11 @@ function isWeekend(k) {
 function dayOfWeek(k) { return new Date(k + "T00:00:00").getDay(); }
 
 function weekNum(k) {
+  // Monday-start weeks
   var d = new Date(k + "T00:00:00");
   var jan1 = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d - jan1) / 864e5 + jan1.getDay() + 1) / 7);
+  var off = (jan1.getDay() + 6) % 7;
+  return Math.floor(((d - jan1) / 864e5 + off) / 7);
 }
 
 function getRangeStart() {
@@ -1008,7 +1021,7 @@ function renderCalBody() {
   var months = getMonths();
   months.forEach(function(mo) {
     var y = mo.y, m = mo.m;
-    var firstDay = new Date(y, m, 1).getDay();
+    var firstDay = (new Date(y, m, 1).getDay() + 6) % 7;
     var daysInMonth = new Date(y, m + 1, 0).getDate();
     var sriCount = 0;
     for (var d = 1; d <= daysInMonth; d++) {
@@ -1021,8 +1034,8 @@ function renderCalBody() {
       countBadge
     ]);
     var grid = ce("div", { class: "cgrid" });
-    DAYS.forEach(function(dayName, di) {
-      grid.appendChild(ce("div", { class: "cdow" + (di === 0 || di === 6 ? " we" : ""), text: dayName }));
+    DAYS_MON.forEach(function(dayName, di) {
+      grid.appendChild(ce("div", { class: "cdow" + (di >= 5 ? " we" : ""), text: dayName }));
     });
     for (var i = 0; i < firstDay; i++) {
       grid.appendChild(ce("div", { class: "cc emp" }));
@@ -1228,6 +1241,7 @@ function getUnavailSet(sf) {
 }
 
 function renderGen() {
+  refreshGenMode();
   var container = el("gen-prev");
   container.innerHTML = "";
   if (!SFs.length) {
@@ -1263,46 +1277,121 @@ function renderGen() {
 }
 
 
-function runGenerateForSf(sf) {
-    var sriDays = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).sort();
-    var agents = sf.agents.map(function(a) { return { name: a, wd: 0, we: 0 }; });
-    var result = [], weeks = {};
-    sriDays.forEach(function(k) {
-      var wk = weekNum(k);
-      if (!weeks[wk]) weeks[wk] = [];
-      weeks[wk].push({ key: k, we: isWeekend(k) });
-    });
-    Object.keys(weeks).sort(function(a, b) { return +a - +b; }).forEach(function(wk) {
-      var used = {};
-      sf.agents.forEach(function(a) { used[a] = 0; });
-      var sorted = weeks[wk].slice().sort(function(a, b) {
-        if (a.we !== b.we) return a.we ? 1 : -1;
-        return a.key < b.key ? -1 : 1;
-      });
-      sorted.forEach(function(day) {
-        var cnt = day.we ? sf.weCount : sf.wdCount;
-        var q = agents.slice().sort(function(a, b) {
-          var at = used[a.name] || 0, bt = used[b.name] || 0;
-          var at2 = day.we ? a.we : a.wd, bt2 = day.we ? b.we : b.wd;
-          if (at === 0 && bt > 0) return -1;
-          if (bt === 0 && at > 0) return 1;
-          if (at2 !== bt2) return at2 - bt2;
-          return (a.wd + a.we) - (b.wd + b.we);
-        });
-        var unavailMap = getUnavailSet(sf);
-        var unavailToday = unavailMap[day.key] || [];
-        var available = q.filter(function(a) { return unavailToday.indexOf(a.name) < 0; });
-        var picked = available.slice(0, Math.min(cnt, available.length)).map(function(a) { return a.name; });
-        picked.forEach(function(name) {
-          var ag = agents.find(function(a) { return a.name === name; });
-          if (day.we) ag.we++; else ag.wd++;
-          used[name] = (used[name] || 0) + 1;
-        });
-        result.push({ date: day.key, we: day.we, ph: isPH(day.key), agents: picked });
-      });
-    });
-    sched[sf.id] = result;
+var genMode = "alpha";
+try { if (localStorage.getItem("sri_genmode") === "random") genMode = "random"; } catch (e) {}
+
+function setGenMode(m) {
+  genMode = m === "random" ? "random" : "alpha";
+  try { localStorage.setItem("sri_genmode", genMode); } catch (e) {}
+  refreshGenMode();
+}
+
+function refreshGenMode() {
+  var a = document.getElementById("gm-alpha"), r = document.getElementById("gm-random"), h = document.getElementById("gm-help");
+  if (!a || !r) return;
+  a.className = "sfb" + (genMode === "alpha" ? " active" : "");
+  r.className = "sfb" + (genMode === "random" ? " active" : "");
+  if (h) h.textContent = genMode === "alpha"
+    ? "Ties are broken alphabetically on weekdays and in reverse alphabetical order on weekends / PH. Fairness and spacing still come first."
+    : "Ties are broken randomly, so every generate gives a different roster. Fairness and spacing still come first.";
+}
+var MIN_GAP = 7;
+
+function dayNum(k) {
+  var p = k.split("-");
+  return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5);
+}
+
+function shuffled(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
   }
+  return a;
+}
+
+function runGenerateForSf(sf) {
+  var sriDays = Object.keys(sf.dayData).filter(function(k) { return sf.dayData[k].agencies.indexOf("SRI") >= 0; }).sort();
+  var agents = sf.agents.map(function(a) { return { name: a, wd: 0, we: 0, last: null }; });
+  var alphaAsc = agents.slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+  var alphaDesc = alphaAsc.slice().reverse();
+  var unavailMap = getUnavailSet(sf);
+  var result = [];
+  sriDays.forEach(function(k) {
+    var we = isWeekend(k);
+    var cnt = we ? sf.weCount : sf.wdCount;
+    var n = dayNum(k);
+    var base = genMode === "random" ? shuffled(agents) : (we ? alphaDesc : alphaAsc);
+    var unavailToday = unavailMap[k] || [];
+    var avail = base.filter(function(a) { return unavailToday.indexOf(a.name) < 0; });
+    function gap(a) { return a.last === null ? 99999 : n - a.last; }
+    function typeCount(a) { return we ? a.we : a.wd; }
+    var rested = avail.filter(function(a) { return gap(a) >= MIN_GAP; });
+    var tooSoon = avail.filter(function(a) { return gap(a) < MIN_GAP; });
+    rested.sort(function(a, b) {
+      if (typeCount(a) !== typeCount(b)) return typeCount(a) - typeCount(b);
+      return (a.wd + a.we) - (b.wd + b.we);
+    });
+    tooSoon.sort(function(a, b) {
+      if (gap(a) !== gap(b)) return gap(b) - gap(a);
+      if (typeCount(a) !== typeCount(b)) return typeCount(a) - typeCount(b);
+      return (a.wd + a.we) - (b.wd + b.we);
+    });
+    var picked = rested.concat(tooSoon).slice(0, Math.min(cnt, avail.length));
+    picked.forEach(function(a) {
+      if (we) a.we++; else a.wd++;
+      a.last = n;
+    });
+    result.push({ date: k, we: we, ph: isPH(k), agents: picked.map(function(a) { return a.name; }) });
+  });
+  sched[sf.id] = result;
+}
+
+// Duties that fall closer than MIN_GAP days to the same agent's previous duty
+function savePdf() {
+  var sf = SFs.find(function(s) { return s.id === activeSchedSf; });
+  if (!sf || !sched[sf.id]) { toast("Generate the schedule first", "err"); return; }
+  var s = getRangeStart(), e = getRangeEnd();
+  function fmt(d) { return d.getDate() + " " + MONTHS_S[d.getMonth()] + " " + d.getFullYear(); }
+  var title = sf.name + " " + fmt(s) + (e ? " to " + fmt(e) : "");
+  title = title.replace(/[\\\/:*?"<>|]/g, "-");
+  var oldTitle = document.title;
+  var restored = false;
+  function restore() {
+    if (restored) return;
+    restored = true;
+    document.title = oldTitle;
+    window.removeEventListener("afterprint", restore);
+  }
+  window.addEventListener("afterprint", restore);
+  document.title = title;
+  window.print();
+  setTimeout(restore, 60000);
+}
+
+function shortDate(k) {
+  var p = k.split("-");
+  return (+p[2]) + " " + MONTHS_S[+p[1] - 1];
+}
+
+function spacingNotes(sfId) {
+  var rows = (sched[sfId] || []).slice().sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+  var last = {}, notes = {}, total = 0;
+  rows.forEach(function(r) {
+    var n = dayNum(r.date);
+    r.agents.forEach(function(name) {
+      if (last[name] && n - last[name].n < MIN_GAP) {
+        if (!notes[r.date]) notes[r.date] = [];
+        notes[r.date].push({ name: name, gap: n - last[name].n, prev: last[name].date });
+        total++;
+      }
+      last[name] = { n: n, date: r.date };
+    });
+  });
+  notes._total = total;
+  return notes;
+}
 
 function generateOne(sfId) {
   var sf = SFs.find(function(s) { return s.id === sfId; });
@@ -1311,7 +1400,7 @@ function generateOne(sfId) {
   if (!sf.agents.length) { toast(sf.name + ": No agents", "err"); return; }
   if (!sd) { toast(sf.name + ": No SRI days", "err"); return; }
   runGenerateForSf(sf);
-  save(); renderGen();
+  autoSave(); renderGen();
   toast("Generated: " + sf.name, "ok");
 }
 
@@ -1427,13 +1516,18 @@ function renderSchedOut() {
   }
   var smap = {};
   sched[sf.id].forEach(function(r) { smap[r.date] = r; });
+  var spNotes = spacingNotes(sf.id);
+  if (spNotes._total > 0) {
+    container.appendChild(ce("div", { class: "warn-bar no-print",
+      text: spNotes._total + " duty slot" + (spNotes._total !== 1 ? "s" : "") + " fall within 7 days of the same agent's previous duty (amber notes below). These notes do not print." }));
+  }
   var months = getMonths();
   months.forEach(function(mo) {
     var y = mo.y, m = mo.m;
-    var firstDay = new Date(y, m, 1).getDay();
+    var firstDay = (new Date(y, m, 1).getDay() + 6) % 7;
     var daysInMonth = new Date(y, m + 1, 0).getDate();
     var grid = ce("div", { class: "sgrid" });
-    DAYS.forEach(function(d) { grid.appendChild(ce("div", { class: "sdow", text: d })); });
+    DAYS_MON.forEach(function(d) { grid.appendChild(ce("div", { class: "sdow", text: d })); });
     for (var i = 0; i < firstDay; i++) grid.appendChild(ce("div", { class: "sc emp-s" }));
     for (var d2 = 1; d2 <= daysInMonth; d2++) {
       var k = dateKey(y, m, d2);
@@ -1459,6 +1553,13 @@ function renderSchedOut() {
         var agentsDiv = ce("div", { class: "sagents" });
         sr.agents.forEach(function(a) { agentsDiv.appendChild(ce("div", { text: a })); });
         cell.appendChild(agentsDiv);
+        if (spNotes[k]) {
+          var noteBox = ce("div", { class: "sp-note no-print" });
+          spNotes[k].forEach(function(nt) {
+            noteBox.appendChild(ce("div", { text: nt.name + ": " + nt.gap + (nt.gap === 1 ? " day" : " days") + " after " + shortDate(nt.prev) }));
+          });
+          cell.appendChild(noteBox);
+        }
       } else if (ags.length) {
         var mainAg = ags[0];
         cell = ce("div", { class: "sc" + (ph ? " ph-s" : ""), style: { background: AG_BG[mainAg], borderColor: AG_BDR[mainAg], justifyContent: "center", alignItems: "center" } });
