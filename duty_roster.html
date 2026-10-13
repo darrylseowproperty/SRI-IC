@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRI Showflat Duty Scheduler v7</title>
+<title>SRI Showflat Duty Scheduler v8</title>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -84,12 +84,14 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
 .sgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .sdow{text-align:center;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:5px 0}
 .sc{border-radius:8px;min-height:96px;padding:7px 8px;border:1px solid var(--bdr);display:flex;flex-direction:column;font-size:12px;position:relative}
-.sc.emp-s{background:transparent;border-color:transparent}.sc.no-d{background:#FAFAF9;border-color:#EFEFEF}.sc.sri-d{background:var(--sp);border-color:var(--sp)}.sc.ph-s{border-style:dashed}
-.sc .sd{font-weight:700;font-size:12px;margin-bottom:3px}.sri-d .sd{color:var(--sy)}.no-d .sd{color:#BDBDBD}
-.sri-d .sa{color:rgba(255,255,255,.6);font-size:11px;font-weight:500;letter-spacing:.03em;margin-top:2px;text-transform:uppercase}
+.sc.emp-s{background:transparent;border-color:transparent}.sc.no-d{background:#FAFAF9;border-color:#EFEFEF}.sc.sri-d{background:#F3EEFA;border:1px solid #D9CFEA;border-left:4px solid var(--sp)}.sc.ph-s{border-style:dashed}
+.sc .sd{font-weight:700;font-size:12px;margin-bottom:3px}.sri-d .sd{color:var(--sp)}.no-d .sd{color:#BDBDBD}
+.sc.sri-d .sagents{color:#1F1633}
+.sa-pills{display:flex;flex-wrap:wrap;gap:2px;margin:2px 0 3px}
+.sa-pills .ach{font-size:10.5px;padding:2px 5px;border-radius:4px;font-weight:700;border:1px solid rgba(0,0,0,.1)}
 .sc .sagents{font-size:14px;color:#fff;line-height:1.7;margin-top:3px;font-weight:600}
 .sc .sco{font-size:10px;margin-top:3px;padding-top:3px;border-top:1px solid rgba(255,255,255,.2)}.sc .sco-item{color:rgba(255,255,255,.7)}
-.s-ph{font-size:9px;background:rgba(168,85,247,.15);color:var(--ph-t);padding:1px 5px;border-radius:4px;margin-bottom:3px;font-weight:600;display:inline-block}.sri-d .s-ph{background:rgba(245,168,0,.2);color:var(--syl)}
+.s-ph{font-size:9px;background:rgba(168,85,247,.15);color:var(--ph-t);padding:1px 5px;border-radius:4px;margin-bottom:3px;font-weight:600;display:inline-block}.sri-d .s-ph{background:#E4D8F5;color:#4B2183}
 .sc-ag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;text-align:center}
 .sca{font-size:14px;padding:3px 8px;border-radius:4px;font-weight:700}
 .sca-PropNex{background:var(--pn-bg);color:var(--pn-t)}.sca-ERA{background:var(--era-bg);color:var(--era-t)}.sca-Huttons{background:var(--htns-bg);color:var(--htns-t)}.sca-OrangeTee{background:var(--ott-bg);color:var(--ott-t)}
@@ -122,7 +124,8 @@ input:focus,select:focus{outline:none;border-color:var(--spm)}
   .sc .sd{font-size:10.5px;margin-bottom:1px}
   .sc.sri-d{background:#fff;border:1px solid #C9C3D6;border-left:4px solid #4B2183}
   .sri-d .sd{color:#4B2183}
-  .sri-d .sa{color:#6B6478;font-size:8.5px;margin-top:0}
+  .sa-pills{gap:2px;margin:1px 0 2px}
+  .sa-pills .ach{font-size:9.5px;padding:1px 5px}
   .sri-d .s-ph{background:#F3E8FF;color:#6B21A8}
   .sc .sagents{color:#111;font-size:11.5px;line-height:1.35;margin-top:2px;font-weight:600}
   .sca{font-size:10px;padding:1px 6px}
@@ -1448,7 +1451,11 @@ function renderSchedOut() {
         cell.appendChild(ce("div", { class: "sd", text: dateLabel }));
         if (ph) cell.appendChild(ce("div", { class: "s-ph", text: ph.split(" ").slice(0, 3).join(" ") }));
         var allAgsHeader = ags.slice();
-        cell.appendChild(ce("div", { class: "sa", text: allAgsHeader.map(function(a){return AG_SHORT[a]||a;}).join(" / ") }));
+        var pillRow = ce("div", { class: "sa-pills" });
+        allAgsHeader.forEach(function(a) {
+          pillRow.appendChild(ce("span", { class: "ach ach-" + a.replace(/ /g, ""), text: AG_SHORT[a] || a }));
+        });
+        cell.appendChild(pillRow);
         var agentsDiv = ce("div", { class: "sagents" });
         sr.agents.forEach(function(a) { agentsDiv.appendChild(ce("div", { text: a })); });
         cell.appendChild(agentsDiv);
